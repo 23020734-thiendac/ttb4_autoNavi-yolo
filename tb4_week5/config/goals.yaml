@@ -1,0 +1,32 @@
+/**:
+  ros__parameters:
+    # Toa do trong map small_house: [x, y, yaw(rad)].
+    # Cac diem nam tren vung san trong cua ban do, tranh tuong va noi that.
+    goal_1: [5.0, -3.0, 0.0]
+    goal_2: [-3.0, -2.0, 3.14]
+    goal_3: [0.0, 3.0, 1.57]
+    # Dock co tam gan (0.20, 0.00). Hai waypoint nam tren vung san trong,
+    # phia tren dock; node tu dao thu tu tuy huong di chuyen.
+    dock_keepout_radius: 1.20
+    dock_bypass_route: [3.0, 1.5, 0.0, -1.0, 1.5, 3.14]
+    # Bai kiem tra co the chay 1 goal truoc; demo nop bai dung 3.
+    goal_count: 3
+    goal_timeout_sec: 180.0
+    wait_after_goal_sec: 2.0
+    # Publish at 1 Hz (khong flood/reset AMCL) and wait at most 45 s.
+    initial_pose_wait_sec: 45.0
+    initial_pose_publish_period_sec: 1.0
+    auto_undock: true
+    undock_timeout_sec: 45.0
+    # Sau khi undock, lui them khoang 0.48 m; khong xoay robot.
+    fallback_reverse_sec: 6.0
+    fallback_reverse_speed: 0.08
+    # Cuu ho hiem khi bumper that su cham vat can/dock:
+    # dung -> lui thang -> quay 90 do -> tien thang -> gui lai goal dang do.
+    recovery_reverse_sec: 1.5
+    recovery_reverse_speed: 0.08
+    recovery_turn_speed: 0.50
+    recovery_turn_direction: left
+    recovery_turn_timeout_sec: 3.5
+    recovery_forward_sec: 1.5
+    recovery_forward_speed: 0.08

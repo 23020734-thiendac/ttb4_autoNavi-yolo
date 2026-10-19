@@ -1,0 +1,17 @@
+# ROS 2 build artifacts
+build/
+install/
+log/
+**/__pycache__/
+*.pyc
+
+# Local training/output artifacts
+tb4_week5/datasets/
+tb4_week5/runs/
+tb4_week5/models/*.pt
+
+# Local reports and editor files
+*.docx
+*.odt
+*.webm
+.~lock.*

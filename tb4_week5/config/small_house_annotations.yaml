@@ -1,0 +1,20 @@
+# Small House asset-only dataset for the six requested object classes.
+#
+# No user screenshots are used. Samples are generated from the visual textures
+# shipped inside aws-robomaker-small-house-world/models.
+names:
+  0: sofa
+  1: trash_bin
+  2: table
+  3: bed
+  4: chandelier
+  5: refrigerator
+
+# Names are verified against models referenced by small_house.world.
+assets:
+  - {class: sofa, patterns: ['*Sofa_01.png', '*SofaB_01.png', '*SofaC_01.png']}
+  - {class: trash_bin, patterns: ['*Trash_01.png']}
+  - {class: table, patterns: ['*KitchenTable_01.png', '*BalconyTable_01.png', '*CoffeeTable_01.png']}
+  - {class: bed, patterns: ['*Bed_01.png']}
+  - {class: chandelier, patterns: ['*Chandelier_01.png']}
+  - {class: refrigerator, patterns: ['*Refrigerator_01.png']}
