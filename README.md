@@ -1,21 +1,8 @@
-# TurtleBot 4 – Week 5 Small House
+# TurtleBot 4 Auto Navi + Yolo Detect/Bounding Box
 
 Project ROS 2 Humble cho bài thực hành tuần 5: localization bằng AMCL,
 navigation tự động qua 3 goal và hiển thị bounding box vật thể trong môi
 trường AWS RoboMaker Small House.
-
-## Nội dung repository
-
-Repository này chỉ dùng map Small House, không dùng map maze:
-
-- `tb4_sim/maps/small_house_slam.yaml`
-- `tb4_sim/maps/small_house_slam.pgm`
-- `tb4_week5/`: node navigation, launch, goals và cấu hình RViz
-- `aws-robomaker-small-house-world/worlds/small_house.world`
-- `aws-robomaker-small-house-world/models/`: model nội thất cho Gazebo
-
-Các map maze cũ, thư mục `build/`, `install/`, `log/`, `__pycache__/`, dataset
-và kết quả train không được đưa vào repository.
 
 ## Yêu cầu
 
@@ -76,11 +63,32 @@ ros2 launch tb4_week5 week5_navigation_yolo.launch.py \
   max_bbox_area_ratio:=0.60
 ```
 
-`run_yolo:=true` được giữ lại để tương thích với lệnh cũ. Phiên bản code hiện
-tại chạy `world_object_bbox_node`: đọc tên và pose model từ
-`small_house.world`, kết hợp TF/camera/depth để vẽ bounding box. Các nhãn hiển
-thị gồm `chair`, `chandelier`, `ball`, `bed`, `coffee_table`, `door`, `tablet`,
-`fitness_equipment`, `sofa`, `trash_bin` và `tv`.
+## Chạy SLAM để tạo lại map Small House
+
+Nếu muốn quét lại môi trường và lưu bản đồ mới, dừng các tiến trình cũ rồi
+chạy Gazebo cùng SLAM Toolbox:
+
+```bash
+cd ~/tb4_autoNavi-yolo
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+
+ros2 launch tb4_week5 small_house_mapping.launch.py \
+  ros_domain_id:=68 \
+  world:=warehouse \
+  model:=standard \
+  world_file:=$(pwd)/aws-robomaker-small-house-world/worlds/small_house.world \
+  rviz:=true
+```
+
+Điều khiển robot để quét toàn bộ nhà, sau đó lưu map:
+
+```bash
+ros2 run nav2_map_server map_saver_cli -f tb4_sim/maps/small_house_slam
+```
+
+Sau khi lưu xong, dùng lại lệnh navigation ở trên để AMCL, Nav2 và nhận diện
+vật thể hoạt động trên map Small House.
 
 ## Luồng hoạt động
 
@@ -132,18 +140,6 @@ vùng trống của `small_house_slam`.
 - Navigation: `/navigate_to_pose`
 - Undock: `/undock`
 - Điều khiển: `/cmd_vel`
-
-## Kiểm tra nhanh
-
-```bash
-ros2 node list | grep -E 'week5|amcl|planner|controller'
-ros2 topic echo /amcl_pose --once
-ros2 topic list | grep -E 'map|scan|camera|tf'
-```
-
-Nếu RobotModel bị đỏ, kiểm tra robot đã spawn, `/robot_description`, `/tf`,
-`/scan` và `/amcl_pose`. Không click 2D Pose Estimate trước khi kiểm tra log của
-`week5_autonomous_nav`.
 
 ## Cấu trúc code chính
 
