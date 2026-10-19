@@ -2,7 +2,9 @@
 
 Project ROS 2 Humble cho bài thực hành tuần 5: localization bằng AMCL,
 navigation tự động qua 3 goal và hiển thị bounding box vật thể trong môi
-trường AWS RoboMaker Small House.
+trường AWS RoboMaker Small House. Do tuần 5 cần bổ sung nhiều vật thể đa dạng
+để camera nhận diện và vẽ bounding box, map maze của tuần 4 được thay thế bằng
+map Small House.
 
 ## Yêu cầu
 
