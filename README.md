@@ -106,6 +106,21 @@ Robot không cần click `2D Pose Estimate` và không cần click `Nav2 Goal` t
 RViz. Gazebo chỉ spawn robot; AMCL vẫn thực hiện localization, còn node tuần 5
 tự publish initial pose cho AMCL.
 
+## Luồng nhận diện và vẽ bounding box
+
+```text
+Camera RGB `/oakd/rgb/preview/image_raw`
+  + CameraInfo `/oakd/rgb/preview/camera_info`
+  + Depth `/oakd/rgb/preview/depth`
+  → `world_object_bbox_node`
+  → bounding box và nhãn vật thể
+  → `/tb4_week5/yolo/detections_image`
+```
+
+Node `world_object_bbox_node` sử dụng ảnh RGB để hiển thị, CameraInfo để tính
+phép chiếu hình học và Depth để kiểm tra vật thể. Ảnh sau khi vẽ box được
+publish trên topic `/tb4_week5/yolo/detections_image`.
+
 ## Ba goal mặc định
 
 Các goal nằm trong `tb4_week5/config/goals.yaml`:
@@ -127,6 +142,7 @@ vùng trống của `small_house_slam`.
 - Camera RGB: `/oakd/rgb/preview/image_raw`
 - Camera info: `/oakd/rgb/preview/camera_info`
 - Depth: `/oakd/rgb/preview/depth`
+- Ảnh đã vẽ bounding box: `/tb4_week5/yolo/detections_image`
 - Navigation: `/navigate_to_pose`
 - Undock: `/undock`
 - Điều khiển: `/cmd_vel`
