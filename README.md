@@ -102,15 +102,6 @@ Gazebo + map Small House
   → Goal 1 → Goal 2 → Goal 3
 ```
 
-Camera chạy song song:
-
-```text
-Camera RGB + CameraInfo + Depth
-  → world_object_bbox_node
-  → world model + TF projection
-  → bounding box + nhãn + terminal log
-```
-
 Robot không cần click `2D Pose Estimate` và không cần click `Nav2 Goal` trên
 RViz. Gazebo chỉ spawn robot; AMCL vẫn thực hiện localization, còn node tuần 5
 tự publish initial pose cho AMCL.
@@ -136,7 +127,6 @@ vùng trống của `small_house_slam`.
 - Camera RGB: `/oakd/rgb/preview/image_raw`
 - Camera info: `/oakd/rgb/preview/camera_info`
 - Depth: `/oakd/rgb/preview/depth`
-- Ảnh đã vẽ box: `/tb4_week5/yolo/detections_image`
 - Navigation: `/navigate_to_pose`
 - Undock: `/undock`
 - Điều khiển: `/cmd_vel`
