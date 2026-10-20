@@ -51,6 +51,16 @@
         </include>
         <pose frame=''>-9.199410 2.411230 2.084544 0 -0 0</pose>
 	</model>
+
+  <!-- Static person target for camera detection and bounding-box testing. -->
+  <model name='Person_01_001'>
+    <static>true</static>
+    <include>
+      <uri>model://week5_person</uri>
+    </include>
+    <!-- Place in an open living-room area. -->
+    <pose frame=''>2.500000 1.000000 0.000000 0 0 1.570796</pose>
+  </model>
 	
 	<model name='AirconditionerB_01_001'>
         <static>true</static>    

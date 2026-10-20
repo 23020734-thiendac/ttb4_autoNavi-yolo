@@ -123,9 +123,6 @@ def generate_launch_description():
                         # AMCL reject/lose the pose and map -> odom never
                         # becomes available to RViz.
                         'use_sim_time': True,
-                        'initial_x': LaunchConfiguration('x'),
-                        'initial_y': LaunchConfiguration('y'),
-                        'initial_yaw': LaunchConfiguration('yaw'),
                         'goal_count': LaunchConfiguration('goal_count'),
                         'auto_undock': LaunchConfiguration('auto_undock'),
                         'undock_timeout_sec': LaunchConfiguration(
@@ -148,6 +145,9 @@ def generate_launch_description():
                     'depth_topic': LaunchConfiguration('depth_topic'),
                     'world_file': LaunchConfiguration('world_file'),
                     'world_frame': LaunchConfiguration('world_frame'),
+                        'initial_x': LaunchConfiguration('x'),
+                        'initial_y': LaunchConfiguration('y'),
+                        'initial_yaw': LaunchConfiguration('yaw'),
                     'max_bbox_area_ratio': ParameterValue(
                         LaunchConfiguration('max_bbox_area_ratio'),
                         value_type=float),

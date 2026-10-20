@@ -55,6 +55,7 @@ OBJECT_SPECS: Dict[str, Tuple[Tuple[float, float, float], Tuple[int, int, int]]]
     'sofa': ((2.55, 0.95, 1.05), (255, 0, 160)),
     'trash_bin': ((0.50, 0.50, 0.75), (0, 255, 255)),
     'tv': ((1.25, 0.18, 0.85), (255, 0, 0)),
+    'person': ((0.65, 0.55, 1.90), (0, 80, 255)),
 }
 
 
@@ -72,6 +73,7 @@ MODEL_PATTERNS: Sequence[Tuple[re.Pattern[str], str]] = (
     (re.compile(r'^SofaC_01(?:_|$)'), 'sofa'),
     (re.compile(r'^Trash_01(?:_|$)'), 'trash_bin'),
     (re.compile(r'^TV_01(?:_|$)'), 'tv'),
+    (re.compile(r'^Person_01(?:_|$)'), 'person'),
 )
 
 
@@ -170,6 +172,8 @@ class WorldObjectBBoxNode(Node):
         self.declare_parameter('min_bbox_pixels', 8)
         self.declare_parameter('max_range_m', 25.0)
         self.declare_parameter('occlusion_tolerance_m', 0.30)
+        self.declare_parameter('occlusion_fraction_threshold', 0.20)
+        self.declare_parameter('occlusion_min_samples', 2)
         self.declare_parameter('log_period_sec', 1.0)
         self.declare_parameter('horizontal_fov_rad', 1.22)
 
@@ -189,6 +193,10 @@ class WorldObjectBBoxNode(Node):
         self.max_range_m = float(self.get_parameter('max_range_m').value)
         self.occlusion_tolerance_m = float(
             self.get_parameter('occlusion_tolerance_m').value)
+        self.occlusion_fraction_threshold = float(
+            self.get_parameter('occlusion_fraction_threshold').value)
+        self.occlusion_min_samples = int(
+            self.get_parameter('occlusion_min_samples').value)
         self.log_period_sec = float(self.get_parameter('log_period_sec').value)
         self.horizontal_fov_rad = float(
             self.get_parameter('horizontal_fov_rad').value)
@@ -295,18 +303,16 @@ class WorldObjectBBoxNode(Node):
             float(point[2]),
         )
 
-    def _is_depth_occluded(
-        self, u: float, v: float, expected_depth: float, width: int, height: int
-    ) -> bool:
-        if self.depth_image is None or expected_depth <= 0.0:
-            return False
+    def _depth_at(self, u: float, v: float, width: int, height: int) -> Optional[float]:
+        if self.depth_image is None:
+            return None
         depth = self.depth_image
         if depth.ndim < 2:
-            return False
+            return None
         du = int(round(u))
         dv = int(round(v))
         if not (0 <= du < depth.shape[1] and 0 <= dv < depth.shape[0]):
-            return False
+            return None
         # The RGB and depth preview streams normally have identical size. If
         # they do not, sample using normalized image coordinates.
         if depth.shape[1] != width or depth.shape[0] != height:
@@ -317,10 +323,106 @@ class WorldObjectBBoxNode(Node):
             sample = sample.flat[0]
         observed = float(sample)
         if not math.isfinite(observed) or observed <= 0.01:
-            return False
+            return None
         if depth.dtype == np.uint16 or '16U' in self.depth_encoding.upper():
             observed /= 1000.0
-        return observed < expected_depth - self.occlusion_tolerance_m
+        return observed
+
+    @staticmethod
+    def _camera_axes(obj: WorldObject, transform) -> Tuple[np.ndarray, ...]:
+        """Return the object's local axes expressed in the camera frame."""
+        rotation = transform.transform.rotation
+        c, s = math.cos(obj.yaw), math.sin(obj.yaw)
+        world_axes = (
+            np.array([c, s, 0.0], dtype=np.float64),
+            np.array([-s, c, 0.0], dtype=np.float64),
+            np.array([0.0, 0.0, 1.0], dtype=np.float64),
+        )
+        quaternion = (rotation.x, rotation.y, rotation.z, rotation.w)
+        return tuple(
+            _quaternion_rotate(axis, quaternion) for axis in world_axes)
+
+    def _front_depth_at_pixel(
+        self,
+        center_camera: np.ndarray,
+        axes_camera: Tuple[np.ndarray, ...],
+        half_sizes: Sequence[float],
+        u: float,
+        v: float,
+        fx: float,
+        fy: float,
+        cx: float,
+        cy: float,
+    ) -> Optional[float]:
+        """Intersect a camera ray with the approximate oriented object box."""
+        ray = np.array([(u - cx) / fx, (v - cy) / fy, 1.0])
+        origin_local = np.array([
+            -float(np.dot(center_camera, axis)) for axis in axes_camera])
+        direction_local = np.array([
+            float(np.dot(ray, axis)) for axis in axes_camera])
+        t_min, t_max = -math.inf, math.inf
+        for origin, direction, half_size in zip(
+                origin_local, direction_local, half_sizes):
+            if abs(direction) < 1e-9:
+                if abs(origin) > half_size:
+                    return None
+                continue
+            t1 = (-half_size - origin) / direction
+            t2 = (half_size - origin) / direction
+            t_min = max(t_min, min(t1, t2))
+            t_max = min(t_max, max(t1, t2))
+            if t_min > t_max:
+                return None
+        if t_max <= 0.10:
+            return None
+        return max(t_min, 0.10)
+
+    def _is_depth_occluded(
+        self,
+        obj: WorldObject,
+        transform,
+        x0: int,
+        y0: int,
+        x1: int,
+        y1: int,
+        fx: float,
+        fy: float,
+        cx: float,
+        cy: float,
+        width: int,
+        height: int,
+    ) -> bool:
+        if self.depth_image is None:
+            return False
+        center_camera = _transform_point(self._model_center(obj), transform)
+        axes_camera = self._camera_axes(obj, transform)
+        half_sizes = np.asarray(OBJECT_SPECS[obj.label][0]) / 2.0
+        valid_samples = 0
+        blocked_samples = 0
+        # Sample the interior rather than only the centre. This catches a wall
+        # or a nearer object covering any meaningful part of the projected box.
+        for fy_ratio in (0.15, 0.35, 0.50, 0.65, 0.85):
+            for fx_ratio in (0.15, 0.35, 0.50, 0.65, 0.85):
+                u = x0 + (x1 - x0) * fx_ratio
+                v = y0 + (y1 - y0) * fy_ratio
+                expected = self._front_depth_at_pixel(
+                    center_camera, axes_camera, half_sizes,
+                    u, v, fx, fy, cx, cy)
+                if expected is None:
+                    continue
+                observed = self._depth_at(u, v, width, height)
+                if observed is None:
+                    continue
+                valid_samples += 1
+                if observed < expected - self.occlusion_tolerance_m:
+                    blocked_samples += 1
+        if valid_samples == 0:
+            return False
+        required = max(
+            self.occlusion_min_samples,
+            int(math.ceil(valid_samples * self.occlusion_fraction_threshold)),
+        )
+        return blocked_samples >= required
 
     def _bbox_for_object(
         self,
@@ -363,7 +465,7 @@ class WorldObjectBBoxNode(Node):
         if center_projection is None or center_projection[2] > self.max_range_m:
             return None
         if self._is_depth_occluded(
-                center_projection[0], center_projection[1], center_projection[2],
+                obj, transform, x0, y0, x1, y1, fx, fy, cx, cy,
                 width, height):
             return None
         return x0, y0, x1, y1, center_projection[2], raw_x0, raw_y0
